@@ -30,7 +30,14 @@ QMK_TO_ZMK_KEYCODES = {
     'KC_MS_UP': 'MMOV', 'KC_MS_DOWN': 'MMOV', 'KC_MS_LEFT': 'MMOV', 'KC_MS_RIGHT': 'MMOV',
     'KC_MS_BTN1': 'MKPD', 'KC_MS_BTN2': 'MKPD', 'KC_MS_BTN3': 'MKPD',
     'KC_MS_WH_UP': 'MWHL', 'KC_MS_WH_DOWN': 'MWHL', 'CW_TOGG': 'CAPS',
-    'QK_BOOTLOADER': 'bootloader', 'QK_REBOOT': 'reset'
+    'QK_BOOTLOADER': 'bootloader', 'QK_REBOOT': 'reset',
+    # Symbol keycodes
+    'KC_EXLM': 'EXCL', 'KC_AT': 'AT', 'KC_HASH': 'HASH', 'KC_DLR': 'DLLR',
+    'KC_PERC': 'PRCNT', 'KC_CIRC': 'CARET', 'KC_AMPR': 'AMPS', 'KC_ASTR': 'ASTRK',
+    'KC_LPRN': 'LPAR', 'KC_RPRN': 'RPAR', 'KC_UNDS': 'UNDER', 'KC_PLUS': 'PLUS',
+    'KC_LCBR': 'LBRC', 'KC_RCBR': 'RBRC', 'KC_PIPE': 'PIPE', 'KC_COLN': 'COLON',
+    'KC_DQUO': 'DQT', 'KC_LT': 'LT', 'KC_GT': 'GT', 'KC_QUES': 'QMARK',
+    'KC_TILD': 'TILDE'
 }
 
 # Add number and letter keys
@@ -78,12 +85,40 @@ class QMKParser:
         """Extract implementation details for a specific tap dance"""
         impl = {'single_tap': None, 'single_hold': None, 'double_tap': None}
         
-        # This is a simplified extraction - in practice you'd need to parse
-        # the tap_dance_actions array or function implementations
-        # For now, return placeholder
-        impl['single_tap'] = 'KC_NO'
-        impl['single_hold'] = 'KC_NO'
-        impl['double_tap'] = 'KC_NO'
+        # Look for the dance_X_finished function implementation
+        pattern = f'void dance_{dance_id}_finished\\(tap_dance_state_t \\*state, void \\*user_data\\)\\s*{{([^}}]+)}}'
+        match = re.search(pattern, self.content, re.DOTALL)
+        
+        if match:
+            function_body = match.group(1)
+            
+            # Extract keycodes with proper parentheses handling
+            def extract_keycode_from_register(text, case_name):
+                """Extract keycode from register_code16() call handling nested parentheses"""
+                pattern = f'case {case_name}:\\s*register_code16\\('
+                start_match = re.search(pattern, text)
+                if not start_match:
+                    return None
+                
+                start_pos = start_match.end()
+                paren_count = 1
+                current_pos = start_pos
+                
+                while current_pos < len(text) and paren_count > 0:
+                    if text[current_pos] == '(':
+                        paren_count += 1
+                    elif text[current_pos] == ')':
+                        paren_count -= 1
+                    current_pos += 1
+                
+                if paren_count == 0:
+                    return text[start_pos:current_pos - 1]  # Exclude the last closing paren
+                return None
+            
+            # Extract each type of keycode
+            impl['single_tap'] = extract_keycode_from_register(function_body, 'SINGLE_TAP')
+            impl['single_hold'] = extract_keycode_from_register(function_body, 'SINGLE_HOLD')
+            impl['double_tap'] = extract_keycode_from_register(function_body, 'DOUBLE_TAP')
         
         return impl
     
@@ -235,8 +270,17 @@ class ZMKGenerator:
         """Convert QMK keycode to ZMK equivalent"""
         # Handle special cases first
         if qmk_keycode.startswith('TD('):
-            dance_name = qmk_keycode[3:-1].replace('DANCE_', 'dance_')
-            return f'&{dance_name}'
+            dance_name = qmk_keycode[3:-1].replace('DANCE_', '')
+            # For tap dances, we need to provide the hold action parameter
+            # We'll use the hold keycode from the tap dance implementation
+            dance_id = dance_name.replace('dance_', '')
+            dance_impl_name = f'DANCE_{dance_id}'
+            if dance_impl_name in self.tap_dances:
+                hold_key = self.tap_dances[dance_impl_name]['single_hold']
+                if hold_key:
+                    hold_zmk = self.convert_keycode(hold_key).replace('&kp ', '').replace('&', '')
+                    return f'&dance_{dance_id} {hold_zmk} 0'
+            return f'&dance_{dance_id} ESC 0'
         
         if qmk_keycode.startswith('DUAL_FUNC_'):
             return f'&{qmk_keycode.lower()}'
@@ -302,6 +346,11 @@ class ZMKGenerator:
                 inner_inner = inner[5:-1]
                 zmk_inner = self.convert_keycode(inner_inner).replace('&kp ', '')
                 return f'&kp LG(LC({zmk_inner}))'
+            elif inner.startswith('LSFT(') and inner.endswith(')'):
+                # LGUI(LSFT(KC_T))
+                inner_inner = inner[5:-1]
+                zmk_inner = self.convert_keycode(inner_inner).replace('&kp ', '')
+                return f'&kp LG(LS({zmk_inner}))'
             else:
                 zmk_inner = self.convert_keycode(inner).replace('&kp ', '')
                 return f'&kp LG({zmk_inner})'
@@ -313,14 +362,25 @@ class ZMKGenerator:
                 inner_inner = inner[5:-1]
                 zmk_inner = self.convert_keycode(inner_inner).replace('&kp ', '')
                 return f'&kp LC(LG({zmk_inner}))'
+            elif inner.startswith('LSFT(') and inner.endswith(')'):
+                # LCTL(LSFT(KC_T))
+                inner_inner = inner[5:-1]
+                zmk_inner = self.convert_keycode(inner_inner).replace('&kp ', '')
+                return f'&kp LC(LS({zmk_inner}))'
             else:
                 zmk_inner = self.convert_keycode(inner).replace('&kp ', '')
                 return f'&kp LC({zmk_inner})'
         
         if qmk_keycode.startswith('LALT(') and qmk_keycode.endswith(')'):
             inner = qmk_keycode[5:-1]
-            zmk_inner = self.convert_keycode(inner).replace('&kp ', '')
-            return f'&kp LA({zmk_inner})'
+            # Handle complex nested cases like LALT(LCTL(LGUI(LSFT(KC_LEFT))))
+            if '(' in inner:
+                # Recursively handle nested modifiers
+                zmk_inner = self.convert_modifier_combo(inner).replace('&kp ', '')
+                return f'&kp LA({zmk_inner})'
+            else:
+                zmk_inner = self.convert_keycode(inner).replace('&kp ', '')
+                return f'&kp LA({zmk_inner})'
         
         if qmk_keycode.startswith('LSFT(') and qmk_keycode.endswith(')'):
             inner = qmk_keycode[5:-1]
@@ -339,14 +399,41 @@ class ZMKGenerator:
     behaviors {
 """
         
-        # Generate tap dance behaviors
+        # Generate tap dance behaviors using combined tap-dance + hold-tap approach
         for i in range(24):  # Assuming 24 tap dances from DANCE_0 to DANCE_23
-            content += f"        dance_{i}: dance_{i} {{\n"
-            content += "            compatible = \"zmk,behavior-tap-dance\";\n"
-            content += "            #binding-cells = <0>;\n"
-            content += "            bindings = <&kp ESC>, <&kp ESC>;\n"  # Placeholder
-            content += "            tapping-term-ms = <200>;\n"
-            content += "        };\n\n"
+            dance_name = f'DANCE_{i}'
+            if dance_name in self.tap_dances:
+                dance_impl = self.tap_dances[dance_name]
+                
+                # Convert QMK keycodes to ZMK format
+                single_tap = self.convert_keycode(dance_impl['single_tap']).replace('&kp ', '').replace('&', '') if dance_impl['single_tap'] else 'kp ESC'
+                single_hold = self.convert_keycode(dance_impl['single_hold']).replace('&kp ', '').replace('&', '') if dance_impl['single_hold'] else 'kp ESC'
+                double_tap = self.convert_keycode(dance_impl['double_tap']).replace('&kp ', '').replace('&', '') if dance_impl['double_tap'] else 'kp ESC'
+                
+                # Generate the tap-dance behavior (handles single tap and double tap)
+                content += f"        td_{i}: td_{i} {{\n"
+                content += "            compatible = \"zmk,behavior-tap-dance\";\n"
+                content += "            #binding-cells = <0>;\n"
+                content += f"            bindings = <&kp {single_tap}>, <&kp {double_tap}>;\n"
+                content += "            tapping-term-ms = <200>;\n"
+                content += "        };\n\n"
+                
+                # Generate the hold-tap behavior (handles hold action with tap-dance as tap)
+                content += f"        dance_{i}: dance_{i} {{\n"
+                content += "            compatible = \"zmk,behavior-hold-tap\";\n"
+                content += "            #binding-cells = <2>;\n"
+                content += "            tapping-term-ms = <200>;\n"
+                content += "            flavor = \"tap-preferred\";\n"
+                content += f"            bindings = <&kp>, <&td_{i}>;\n"
+                content += "        };\n\n"
+            else:
+                # Fallback for undefined tap dances
+                content += f"        dance_{i}: dance_{i} {{\n"
+                content += "            compatible = \"zmk,behavior-tap-dance\";\n"
+                content += "            #binding-cells = <0>;\n"
+                content += "            bindings = <&kp ESC>, <&kp ESC>;\n"
+                content += "            tapping-term-ms = <200>;\n"
+                content += "        };\n\n"
         
         # Generate dual function behaviors
         for func_name, func_impl in self.dual_functions.items():
