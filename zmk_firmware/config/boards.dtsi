@@ -1,0 +1,8 @@
+// This file includes board-specific configuration for the Ergodox EZ in ZMK
+// Adjust as needed for your hardware variant
+
+#include <dt-bindings/zmk/matrix_transform.h>
+#include <dt-bindings/zmk/kscan_behavior.h>
+
+// Example: include the SliceMK Ergodox Wireless Lite board definition
+#include <boards/shields/slicemk_ergodox_wireless_lite/slicemk_ergodox_wireless_lite.dtsi>

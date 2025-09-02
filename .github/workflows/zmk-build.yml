@@ -1,0 +1,38 @@
+name: Build ZMK Firmware for SliceMK Ergodox Wireless Lite
+
+on:
+  push:
+    paths:
+      - 'rAboj/keymap.c'
+      - 'qmk_to_zmk.py'
+      - '.github/workflows/zmk-build.yml'
+  workflow_dispatch:
+
+jobs:
+  convert-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run QMK to ZMK conversion
+        run: |
+          python3 qmk_to_zmk.py
+
+      - name: Set up ZMK build environment
+        uses: zmkfirmware/zmk-docker-action@v1
+
+      - name: Build ZMK firmware
+        run: |
+          west build -s ${{ github.workspace }}/zmk -d build/slicemk_ergodox_wireless_lite -- -DSHIELD=slicemk_ergodox_wireless_lite -DZMK_CONFIG=${{ github.workspace }}/zmk_firmware/config
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: slicemk-ergodox-wireless-lite-firmware
+          path: build/slicemk_ergodox_wireless_lite/zephyr/zmk.uf2
