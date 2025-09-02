@@ -147,7 +147,7 @@ class QMKParser:
         
         # Find all layer starts
         layer_starts = []
-        for match in re.finditer(r'\[(\d+)\]\s*=\s*LAYOUT_ergodx_pretty\(', keymaps_content):
+        for match in re.finditer(r'\[(\d+)\]\s*=\s*LAYOUT_ergodox_pretty\(', keymaps_content):
             layer_starts.append((int(match.group(1)), match.start(), match.end()))
         
         # Extract each layer's content by finding matching closing parenthesis
@@ -198,7 +198,7 @@ class QMKParser:
         
         return keys
     
-    def group_ergodx_keys(self, keys: List[str]) -> List[List[str]]:
+    def group_ergodox_keys(self, keys: List[str]) -> List[List[str]]:
         """Group keys into Ergodox layout rows"""
         # Ergodox layout: 14 keys top row, 14 keys second row, etc.
         if len(keys) < 76:  # Typical ergodox has 76 keys
