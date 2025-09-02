@@ -1,11 +1,6 @@
 name: Build ZMK Firmware for SliceMK Ergodox Wireless Lite
 
 on:
-  push:
-    paths:
-      - 'rAboj/keymap.c'
-      - 'qmk_to_zmk.py'
-      - '.github/workflows/zmk-build.yml'
   workflow_dispatch:
 
 jobs:
