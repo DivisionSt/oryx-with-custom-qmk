@@ -81,7 +81,7 @@
         td_5: td_5 {
             compatible = "zmk,behavior-tap-dance";
             #binding-cells = <0>;
-            bindings = <&kp LCTL(KC_TAB>, <&kp LGUI(KC_LEFT>;
+            bindings = <&kp LC(TAB)>, <&kp LG(LEFT)>;
             tapping-term-ms = <200>;
         };
 
@@ -96,7 +96,7 @@
         td_6: td_6 {
             compatible = "zmk,behavior-tap-dance";
             #binding-cells = <0>;
-            bindings = <&kp T>, <&kp LGUI(LSFT(KC_T>;
+            bindings = <&kp T>, <&kp LG(LS(T))>;
             tapping-term-ms = <200>;
         };
 
@@ -111,7 +111,7 @@
         td_7: td_7 {
             compatible = "zmk,behavior-tap-dance";
             #binding-cells = <0>;
-            bindings = <&kp GRAVE>, <&kp LGUI(KC_GRAVE>;
+            bindings = <&kp GRAVE>, <&kp LG(GRAVE)>;
             tapping-term-ms = <200>;
         };
 
@@ -231,7 +231,7 @@
         td_15: td_15 {
             compatible = "zmk,behavior-tap-dance";
             #binding-cells = <0>;
-            bindings = <&kp LCTL(KC_TAB>, <&kp LALT(KC_LEFT>;
+            bindings = <&kp LC(TAB)>, <&kp LA(LEFT)>;
             tapping-term-ms = <200>;
         };
 
@@ -246,7 +246,7 @@
         td_16: td_16 {
             compatible = "zmk,behavior-tap-dance";
             #binding-cells = <0>;
-            bindings = <&kp T>, <&kp LCTL(LSFT(KC_T>;
+            bindings = <&kp T>, <&kp LC(LS(T))>;
             tapping-term-ms = <200>;
         };
 
@@ -261,7 +261,7 @@
         td_17: td_17 {
             compatible = "zmk,behavior-tap-dance";
             #binding-cells = <0>;
-            bindings = <&kp LALT(LCTL(LGUI(LSFT(KC_LEFT>, <&kp LALT(LCTL(LGUI(KC_LEFT>;
+            bindings = <&kp LA(LC(LG(LS(LEFT))))>, <&kp LA(LC(LG(LEFT)))>;
             tapping-term-ms = <200>;
         };
 
@@ -276,7 +276,7 @@
         td_18: td_18 {
             compatible = "zmk,behavior-tap-dance";
             #binding-cells = <0>;
-            bindings = <&kp LALT(LCTL(LGUI(LSFT(KC_RIGHT>, <&kp LALT(LCTL(LGUI(KC_RIGHT>;
+            bindings = <&kp LA(LC(LG(LS(RIGHT))))>, <&kp LA(LC(LG(RIGHT)))>;
             tapping-term-ms = <200>;
         };
 
@@ -291,7 +291,7 @@
         td_19: td_19 {
             compatible = "zmk,behavior-tap-dance";
             #binding-cells = <0>;
-            bindings = <&kp LALT(LCTL(LGUI(LSFT(KC_LEFT>, <&kp LALT(LCTL(LGUI(KC_LEFT>;
+            bindings = <&kp LA(LC(LG(LS(LEFT))))>, <&kp LA(LC(LG(LEFT)))>;
             tapping-term-ms = <200>;
         };
 
@@ -306,7 +306,7 @@
         td_20: td_20 {
             compatible = "zmk,behavior-tap-dance";
             #binding-cells = <0>;
-            bindings = <&kp LALT(LCTL(LGUI(LSFT(KC_RIGHT>, <&kp LALT(LCTL(LGUI(KC_RIGHT>;
+            bindings = <&kp LA(LC(LG(LS(RIGHT))))>, <&kp LA(LC(LG(RIGHT)))>;
             tapping-term-ms = <200>;
         };
 
@@ -336,7 +336,7 @@
         td_22: td_22 {
             compatible = "zmk,behavior-tap-dance";
             #binding-cells = <0>;
-            bindings = <&kp LCTL(KC_TAB>, <&kp LALT(KC_LEFT>;
+            bindings = <&kp LC(TAB)>, <&kp LA(LEFT)>;
             tapping-term-ms = <200>;
         };
 
@@ -351,7 +351,7 @@
         td_23: td_23 {
             compatible = "zmk,behavior-tap-dance";
             #binding-cells = <0>;
-            bindings = <&kp T>, <&kp LCTL(LSFT(KC_T>;
+            bindings = <&kp T>, <&kp LC(LS(T))>;
             tapping-term-ms = <200>;
         };
 

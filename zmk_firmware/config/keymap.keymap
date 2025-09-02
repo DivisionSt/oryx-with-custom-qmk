@@ -8,9 +8,9 @@
 
         layer_0 {
             bindings = <
-                &kp ESC &dance_0 EXCL 0 &dance_1 AT 0 &dance_2 HASH 0 &dance_3 DLLR 0 &dance_4 PRCNT 0 &dance_5 LGUI(LSFT(KC_A 0
+                &kp ESC &dance_0 EXCL 0 &dance_1 AT 0 &dance_2 HASH 0 &dance_3 DLLR 0 &dance_4 PRCNT 0 &dance_5 LG(LS(A)) 0
                 &key_repeat &dance_8 CARET 0 &dance_9 AMPS 0 &dance_10 ASTRK 0 &dance_11 LPAR 0 &dance_12 RPAR 0 &dance_13 UNDER 0
-                &kp TAB &kp Q &dual_func_0 &kp E &dual_func_1 &dance_6 LGUI(KC_T 0 &dance_7 TILDE 0
+                &kp TAB &kp Q &dual_func_0 &kp E &dual_func_1 &dance_6 LG(T) 0 &dance_7 TILDE 0
                 &dance_14 PLUS 0 &kp Y &dual_func_13 &dual_func_14 &kp O &kp P &kp BSLH
                 &kp LGUI &dual_func_2 &dual_func_3 &kp D &dual_func_4 &kp G &kp H
                 &kp J &kp K &dual_func_15 &kp SEMI &kp SQT &kp LSHFT &dual_func_5
@@ -25,9 +25,9 @@
 
         layer_1 {
             bindings = <
-                &kp trans &kp trans &kp trans &kp trans &kp trans &kp trans &dance_15 LCTL(LSFT(KC_A 0
+                &kp trans &kp trans &kp trans &kp trans &kp trans &kp trans &dance_15 LC(LS(A)) 0
                 &kp trans &kp trans &kp trans &kp trans &kp trans &kp trans &kp trans
-                &kp TAB &kp trans &dual_func_18 &kp trans &dual_func_19 &dance_16 LCTL(KC_T 0 &dual_func_20
+                &kp TAB &kp trans &dual_func_18 &kp trans &dual_func_19 &dance_16 LC(T) 0 &dual_func_20
                 &kp trans &kp trans &dual_func_31 &dual_func_32 &kp trans &kp trans &kp trans
                 &kp LCTRL &dual_func_21 &dual_func_22 &kp trans &dual_func_23 &kp trans &dual_func_33
                 &kp trans &dual_func_34 &dual_func_35 &kp trans &kp trans &kp trans &dual_func_24
@@ -93,9 +93,9 @@
 
         layer_5 {
             bindings = <
-                &kp trans &kp trans &kp trans &kp trans &kp trans &kp trans &dance_22 LCTL(LSFT(KC_A 0
+                &kp trans &kp trans &kp trans &kp trans &kp trans &kp trans &dance_22 LC(LS(A)) 0
                 &kp trans &kp trans &kp trans &kp trans &kp trans &kp trans &kp trans
-                &kp trans &kp trans &dual_func_18 &kp trans &dual_func_19 &dance_23 LCTL(KC_T 0 &dual_func_20
+                &kp trans &kp trans &dual_func_18 &kp trans &dual_func_19 &dance_23 LC(T) 0 &dual_func_20
                 &kp trans &dual_func_44 &dual_func_31 &dual_func_32 &kp trans &kp trans &kp trans
                 &kp LCTRL &dual_func_21 &dual_func_22 &kp trans &dual_func_23 &kp trans &dual_func_33
                 &kp trans &dual_func_34 &dual_func_35 &kp trans &kp trans &kp trans &dual_func_24
