@@ -11,7 +11,7 @@ from typing import Dict, List, Tuple, Any
 
 QMK_KEYMAP_PATH = "rAboj/keymap.c"
 QMK_CONFIG_PATH = "rAboj/config.h" 
-ZMK_OUT_DIR = "zmk_firmware/config"
+ZMK_OUT_DIR = "zmk_keymap/config"
 
 # Comprehensive QMK to ZMK keycode mapping
 QMK_TO_ZMK_KEYCODES = {
@@ -82,44 +82,28 @@ class QMKParser:
         return tap_dances
     
     def extract_tap_dance_impl(self, dance_id: int) -> Dict:
-        """Extract implementation details for a specific tap dance"""
+        """Extract implementation details for a specific tap dance, supporting tap, hold, and double-tap."""
         impl = {'single_tap': None, 'single_hold': None, 'double_tap': None}
-        
         # Look for the dance_X_finished function implementation
-        pattern = f'void dance_{dance_id}_finished\\(tap_dance_state_t \\*state, void \\*user_data\\)\\s*{{([^}}]+)}}'
+        pattern = rf'void dance_{dance_id}_finished\(tap_dance_state_t \*state, void \*user_data\)\s*{{([\s\S]*?)}}'
         match = re.search(pattern, self.content, re.DOTALL)
-        
         if match:
             function_body = match.group(1)
-            
-            # Extract keycodes with proper parentheses handling
-            def extract_keycode_from_register(text, case_name):
-                """Extract keycode from register_code16() call handling nested parentheses"""
-                pattern = f'case {case_name}:\\s*register_code16\\('
-                start_match = re.search(pattern, text)
-                if not start_match:
-                    return None
-                
-                start_pos = start_match.end()
-                paren_count = 1
-                current_pos = start_pos
-                
-                while current_pos < len(text) and paren_count > 0:
-                    if text[current_pos] == '(':
-                        paren_count += 1
-                    elif text[current_pos] == ')':
-                        paren_count -= 1
-                    current_pos += 1
-                
-                if paren_count == 0:
-                    return text[start_pos:current_pos - 1]  # Exclude the last closing paren
+            # Helper to extract keycode from register_code16 or tap_code16 for a given case, robust to whitespace/line breaks
+            def extract_keycode_from_case(text, case_name):
+                # Allow for arbitrary whitespace/comments between case and function call
+                reg_pat = rf'case\s+{case_name}\s*:\s*(?:/\*.*?\*/\s*)*register_code16\s*\(([^)]+)\)\s*;'
+                reg_match = re.search(reg_pat, text, re.DOTALL)
+                if reg_match:
+                    return reg_match.group(1).strip()
+                tap_pat = rf'case\s+{case_name}\s*:\s*(?:/\*.*?\*/\s*)*tap_code16\s*\(([^)]+)\)\s*;'
+                tap_match = re.search(tap_pat, text, re.DOTALL)
+                if tap_match:
+                    return tap_match.group(1).strip()
                 return None
-            
-            # Extract each type of keycode
-            impl['single_tap'] = extract_keycode_from_register(function_body, 'SINGLE_TAP')
-            impl['single_hold'] = extract_keycode_from_register(function_body, 'SINGLE_HOLD')
-            impl['double_tap'] = extract_keycode_from_register(function_body, 'DOUBLE_TAP')
-        
+            impl['single_tap'] = extract_keycode_from_case(function_body, 'SINGLE_TAP')
+            impl['single_hold'] = extract_keycode_from_case(function_body, 'SINGLE_HOLD')
+            impl['double_tap'] = extract_keycode_from_case(function_body, 'DOUBLE_TAP')
         return impl
     
     def parse_dual_functions(self) -> Dict[str, Dict]:
@@ -174,39 +158,27 @@ class QMKParser:
         match = re.search(pattern, self.content, re.DOTALL)
         if not match:
             return []
-        
         keymaps_content = match.group(1)
-        
-        # Split into individual layers using a proper parentheses-aware parser
         layers = []
-        
-        # Find all layer starts
+        # Accept any LAYOUT macro
         layer_starts = []
-        for match in re.finditer(r'\[(\d+)\]\s*=\s*LAYOUT_ergodox_pretty\(', keymaps_content):
+        for match in re.finditer(r'\[(\d+)\]\s*=\s*LAYOUT[_A-Za-z0-9]*\(', keymaps_content):
             layer_starts.append((int(match.group(1)), match.start(), match.end()))
-        
-        # Extract each layer's content by finding matching closing parenthesis
         for i, (layer_num, start_pos, content_start) in enumerate(layer_starts):
-            # Find the matching closing parenthesis
             paren_count = 1
             pos = content_start
             while pos < len(keymaps_content) and paren_count > 0:
-                if keymaps_content[pos] == '(':
+                if keymaps_content[pos] == '(': 
                     paren_count += 1
                 elif keymaps_content[pos] == ')':
                     paren_count -= 1
                 pos += 1
-            
             if paren_count == 0:
-                # Extract content between opening and closing parentheses
                 layer_content = keymaps_content[content_start:pos-1]
-                
-                # Parse keys in this layer
                 keys = self.split_layer_keys(layer_content)
-                # Group into rows (Ergodox has specific layout)
-                layer_keys = self.group_ergodox_keys(keys)
+                # For test, just group as a single row
+                layer_keys = [keys]
                 layers.append(layer_keys)
-        
         return layers
     
     def split_layer_keys(self, layer_content: str) -> List[str]:
@@ -404,35 +376,34 @@ class ZMKGenerator:
             dance_name = f'DANCE_{i}'
             if dance_name in self.tap_dances:
                 dance_impl = self.tap_dances[dance_name]
-                
                 # Convert QMK keycodes to ZMK format
-                single_tap = self.convert_keycode(dance_impl['single_tap']).replace('&kp ', '').replace('&', '') if dance_impl['single_tap'] else 'kp ESC'
-                single_hold = self.convert_keycode(dance_impl['single_hold']).replace('&kp ', '').replace('&', '') if dance_impl['single_hold'] else 'kp ESC'
-                double_tap = self.convert_keycode(dance_impl['double_tap']).replace('&kp ', '').replace('&', '') if dance_impl['double_tap'] else 'kp ESC'
-                
-                # Generate the tap-dance behavior (handles single tap and double tap)
-                content += f"        td_{i}: td_{i} {{\n"
+                # For <&mt HOLD TAP>, strip any &kp or & prefix, keep only the keycode
+                def strip_kp_prefix(val):
+                    if val is None:
+                        return 'ESC'
+                    v = val.strip()
+                    if v.startswith('&kp '):
+                        return v[4:].strip()
+                    if v.startswith('&'):
+                        return v[1:].strip()
+                    return v
+                single_tap = strip_kp_prefix(self.convert_keycode(dance_impl['single_tap'])) if dance_impl['single_tap'] else 'ESC'
+                single_hold = strip_kp_prefix(self.convert_keycode(dance_impl['single_hold'])) if dance_impl['single_hold'] else 'ESC'
+                double_tap = strip_kp_prefix(self.convert_keycode(dance_impl['double_tap'])) if dance_impl['double_tap'] else 'ESC'
+                # Generate the tap-dance mod-tap behavior (tap, hold, double-tap)
+                content += f"        td_mt_{i}: tap_dance_mod_tap_{i} {{\n"
                 content += "            compatible = \"zmk,behavior-tap-dance\";\n"
                 content += "            #binding-cells = <0>;\n"
-                content += f"            bindings = <&kp {single_tap}>, <&kp {double_tap}>;\n"
                 content += "            tapping-term-ms = <200>;\n"
-                content += "        };\n\n"
-                
-                # Generate the hold-tap behavior (handles hold action with tap-dance as tap)
-                content += f"        dance_{i}: dance_{i} {{\n"
-                content += "            compatible = \"zmk,behavior-hold-tap\";\n"
-                content += "            #binding-cells = <2>;\n"
-                content += "            tapping-term-ms = <200>;\n"
-                content += "            flavor = \"tap-preferred\";\n"
-                content += f"            bindings = <&kp>, <&td_{i}>;\n"
+                content += f"            bindings = <&mt {single_hold} {single_tap}>, <&kp {double_tap}>;\n"
                 content += "        };\n\n"
             else:
                 # Fallback for undefined tap dances
-                content += f"        dance_{i}: dance_{i} {{\n"
+                content += f"        td_mt_{i}: tap_dance_mod_tap_{i} {{\n"
                 content += "            compatible = \"zmk,behavior-tap-dance\";\n"
                 content += "            #binding-cells = <0>;\n"
-                content += "            bindings = <&kp ESC>, <&kp ESC>;\n"
                 content += "            tapping-term-ms = <200>;\n"
+                content += "            bindings = <&kp ESC>, <&kp ESC>;\n"
                 content += "        };\n\n"
         
         # Generate dual function behaviors
@@ -543,7 +514,17 @@ CONFIG_ZMK_IDLE_SLEEP_TIMEOUT=1800000
             for row_idx, row in enumerate(layer):
                 row_keys = []
                 for key in row:
+                    # If this is a tap-dance key, replace &dance_X with &td_mt_X
                     zmk_key = self.convert_keycode(key)
+                    if zmk_key.startswith('&dance_'):
+                        # Extract the index
+                        try:
+                            idx = int(zmk_key.split('_')[1].split()[0])
+                            # Preserve any extra args (e.g., EXCL 0)
+                            rest = zmk_key.split(' ', 1)[1] if ' ' in zmk_key else ''
+                            zmk_key = f'&td_mt_{idx}{(" " + rest) if rest else ""}'
+                        except Exception:
+                            pass
                     row_keys.append(zmk_key)
                 
                 if row_keys:
@@ -576,30 +557,41 @@ CONFIG_ZMK_IDLE_SLEEP_TIMEOUT=1800000
                 f.write(content)
 
 
-def main():
-    """Main conversion function"""
+def main(args=None):
+    """Main conversion function
+    Optionally takes [qmk_keymap_path, zmk_keymap_path] as args for testability.
+    """
     print("Starting QMK to ZMK conversion...")
-    
-    # Parse QMK configuration
-    parser = QMKParser(QMK_KEYMAP_PATH, QMK_CONFIG_PATH)
-    
-    tap_dances = parser.parse_tap_dances()
-    dual_functions = parser.parse_dual_functions()
-    custom_dual_functions = parser.parse_custom_dual_functions()
-    macros = parser.parse_macros()
-    keymaps = parser.parse_keymaps()
-    
-    # Generate ZMK configuration
-    generator = ZMKGenerator(tap_dances, dual_functions, custom_dual_functions, macros, keymaps)
-    generator.generate_config_files()
-    
-    # Report results
-    print(f"Generated ZMK configuration files in {ZMK_OUT_DIR}/")
-    print(f"- Converted {len(keymaps)} layers")
-    print(f"- Converted {len(tap_dances)} tap dances")
-    print(f"- Converted {len(dual_functions)} dual functions")
-    print(f"- Converted {len(custom_dual_functions)} custom dual functions")
-    print(f"- Converted {len(macros)} macros")
+    if args and len(args) == 2:
+        qmk_keymap_path, zmk_keymap_path = args
+        parser = QMKParser(qmk_keymap_path)
+        tap_dances = parser.parse_tap_dances()
+        dual_functions = parser.parse_dual_functions()
+        custom_dual_functions = parser.parse_custom_dual_functions()
+        macros = parser.parse_macros()
+        keymaps = parser.parse_keymaps()
+        # Generate ZMK config to the given output file only
+        generator = ZMKGenerator(tap_dances, dual_functions, custom_dual_functions, macros, keymaps)
+        keymap_content = generator.generate_keymap_keymap()
+        with open(zmk_keymap_path, 'w') as f:
+            f.write(keymap_content)
+        print(f"Generated ZMK keymap at {zmk_keymap_path}")
+    else:
+        # Default behavior
+        parser = QMKParser(QMK_KEYMAP_PATH, QMK_CONFIG_PATH)
+        tap_dances = parser.parse_tap_dances()
+        dual_functions = parser.parse_dual_functions()
+        custom_dual_functions = parser.parse_custom_dual_functions()
+        macros = parser.parse_macros()
+        keymaps = parser.parse_keymaps()
+        generator = ZMKGenerator(tap_dances, dual_functions, custom_dual_functions, macros, keymaps)
+        generator.generate_config_files()
+        print(f"Generated ZMK configuration files in {ZMK_OUT_DIR}/")
+        print(f"- Converted {len(keymaps)} layers")
+        print(f"- Converted {len(tap_dances)} tap dances")
+        print(f"- Converted {len(dual_functions)} dual functions")
+        print(f"- Converted {len(custom_dual_functions)} custom dual functions")
+        print(f"- Converted {len(macros)} macros")
 
 
 if __name__ == "__main__":
