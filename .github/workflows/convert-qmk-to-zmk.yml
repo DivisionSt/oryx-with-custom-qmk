@@ -1,0 +1,24 @@
+name: Convert QMK to ZMK Keymap
+
+on:
+  workflow_dispatch:
+    inputs:
+      dummy:
+        description: 'Trigger conversion'
+        required: false
+
+jobs:
+  convert-qmk-to-zmk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run QMK to ZMK conversion
+        run: |
+          python3 qmk_to_zmk.py
